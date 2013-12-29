@@ -34,6 +34,11 @@ caption {
 		background: transparent;
 }
 
+#subtle {
+		font:0.8em/145% 'Trebuchet MS',helvetica,arial,verdana;
+		color: #333;
+		font-style: italic;
+}
 /* =links
 ----------------------------------------------- */
 

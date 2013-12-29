@@ -141,6 +141,10 @@
    		<INPUT TYPE="HIDDEN" NAME="fctthankyoutb|donation_id" VALUE="'.$thanks_donation_id.'">';
    	}
    	
+	echo '<p id="subtle">Receipt comment - Use this field to enter additional information that must appear on the donors receipt e.g. This receipt cancels receipt # 1234 or, description of in-kind donations. The donor will see this information<br>
+		  Donation notes - Use this field for INTERNAL comments about the donation. This field will not be printed on the receipt<br>
+		  Category - Do not use this field. It was used prior to 2012 only.</p>';
+	
    	// Thanks
    	echo '<br><table border=1>
    	<thead><tr><th colspan=2>Thank-yous</th></tr></thead>
