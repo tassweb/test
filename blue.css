@@ -1,0 +1,119 @@
+/* roScripts
+Table Design by Mihalcea Romeo
+www.roscripts.com
+----------------------------------------------- */
+
+div {
+		font:1.0em/125% 'Trebuchet MS',helvetica,arial,verdana;
+		align:center;
+		color: #333;
+}
+
+table {
+		border-collapse:collapse;
+		background:#EFF4FB url(teaser.gif) repeat-x;
+		border-left:1px solid #686868;
+		border-right:1px solid #686868;
+		font:0.8em/145% 'Trebuchet MS',helvetica,arial,verdana;
+		color: #333;
+		white-space: nowrap
+}
+
+td, th {
+		padding:2px;
+		white-space: nowrap
+}
+
+caption {
+		padding: 0 0 .5em 0;
+		text-align: left;
+		font-size: 1.4em;
+		font-weight: bold;
+		text-transform: uppercase;
+		color: #333;
+		background: transparent;
+}
+
+/* =links
+----------------------------------------------- */
+
+table a {
+		color:#950000;
+		text-decoration:none;
+}
+
+table a:link {}
+
+table a:visited {
+		font-weight:normal;
+		color:#666;
+}
+
+table a:hover {
+		border-bottom: 1px dashed #bbb;
+}
+
+/* =head =foot
+----------------------------------------------- */
+
+thead th, tfoot th, tfoot td {
+		background:#333 url(llsh.gif) repeat-x;
+		color:#fff;
+		white-space: nowrap;
+}
+
+thead td:hover, thead th:hover {
+		color:#999999;
+		font-weight:bold;
+}
+
+tfoot td {
+		text-align:right
+}
+
+/* =body
+----------------------------------------------- */
+
+tbody th, tbody td {
+		border-bottom: dotted 1px #333;
+		white-space: nowrap
+}
+
+tbody th {
+		white-space: nowrap;
+}
+
+tbody th a {
+		color:#333;
+}
+
+.odd {}
+
+tbody tr:hover {
+		background:#fafafa;
+		white-space: nowrap
+}
+
+input.btn { 
+	color:#FFF; 
+	font:1.0em/190% 'Trebuchet MS',helvetica,arial,verdana;
+	background:#333 url(llsh.gif) repeat-x; 
+	border: 3px solid; 
+	border-color: #EFF4FB #EFF4FB #EFF4FB #EFF4FB; 
+} 
+
+input.btnclicked { 
+	color:#C9DAEE; 
+	font:1.0em/190% 'Trebuchet MS',helvetica,arial,verdana;
+	background:#333 url(llsh.gif) repeat-x; 
+	border: 2px solid; 
+	border-color: #EFF4FB #EFF4FB #EFF4FB #EFF4FB; 
+} 
+
+input.btn:hover {
+	color:#AAA;
+}
+
+input.btnclicked:hover {
+	color:#AAA;
+}

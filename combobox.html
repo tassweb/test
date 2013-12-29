@@ -1,0 +1,1138 @@
+<!DOCTYPE XHTML PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
+<html>
+<head>
+	<title>Multi-stroke Auto-select Combo</title>
+	<script type="text/javascript">
+		/* **** ARRAY EXTENSION FOR NON-SUPPORTING BROWSERS **** */
+		if(typeof Array.prototype.push=='undefined') {
+		    Array.prototype.push = function () {
+		        var i=0,
+		            b=this.length,
+		            a=arguments;
+		        for(i;i<a.length;i++) {
+		            this[b+i]=a[i];
+				}
+		        return this.length
+		    }
+		}
+		/* **** STRING EXTENSION FOR PUNCTUATION **** */
+		if (typeof(String.fromCharCode) == 'undefined') {
+			String.fromCharCode = function () {
+				if (arguments.length = 0) {
+					return "";
+				}
+				var charCodeChars = new Array(32),
+					returnString = "",
+					i;
+				charCodeChars[9] = '\t';
+				charCodeChars[13] = '\n';
+				charCodeChars.push(' ','!','"','#','$','%','',"'",'(',')','*','+',',','-','.','/','0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?','@');
+				charCodeChars.push('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','[','\\',']','^','_','`');
+				charCodeChars.push('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','{','|','}','~');
+				for (i=0;arguments.length>i;i++) {
+					returnString += charCodeChars[arguments[i]];
+				}
+				return returnString;
+			}
+		}
+		String.fromKeyCode = function (keyCode,evtType) {
+			if (!evtType || !evtType.length) {
+				evtType = "keyDown";
+			} else if (evtType.toLowerCase() == "keypress") {
+				return String.fromCharCode(keyCode);
+			}
+			var keyDownChars = new Array(16);
+				keyDownChars[8] = '[Bksp]';
+				keyDownChars[9] = '[Tab]';
+				keyDownChars[12] = '[N5+shift]';
+				keyDownChars[13] = '[Enter]';
+				keyDownChars.push('[Shift]','[Ctrl]','[Alt]','[Pause]','[CapsLock]');
+				for (i=11;i;--i) {
+					keyDownChars.push('undefined');
+				}
+				keyDownChars[27] = '[Esc]';
+				keyDownChars.push(' ','[PgUp]','[PgDn]','[End]','[Home]','[Left]','[Up]','[Right]','[Down]');
+				for (i=7;i;--i) {
+					keyDownChars.push('undefined');
+				}
+				keyDownChars[45] = '[Ins]';
+				keyDownChars[46] = '[Del]';
+				keyDownChars.push(['0',')'],['1','!'],['2','@'],['3','#'],['4','$'],['5','%'],['6','^'],['7','&'],['8','*'],['9','(']);
+				for (i=7;i;--i) {
+					keyDownChars.push('undefined');
+				}
+				keyDownChars.push('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','[WinKey]');
+				for (i=4;i;--i) {
+					keyDownChars.push('undefined');
+				}
+				keyDownChars.push('0','1','2','3','4','5','6','7','8','9','*','+','undefined','-','.','/','[F1]','[F2]','[F3]','[F4]','[F5]','[F6]','[F7]','[F8]','[F9]','[F10]','[F11]','[F12]');
+				for (i=62;i;--i) {
+					keyDownChars.push('undefined');
+				}
+				keyDownChars[144] = '[NumLock]';
+				keyDownChars[145] = '[ScrollLock]';
+				keyDownChars.push([';',':'],['=','+'],[',','<'],['-','_'],['.','>'],['/','?'],['`','~']);
+				for (i=26;i;--i) {
+					keyDownChars.push('undefined')
+				}
+				keyDownChars.push(['[','{'],['\\','|'],[']','}'],["'",'"']);
+			return keyDownChars[keyCode];
+		}
+		
+		/* **** COMBOBOX CODE **** */
+		/**************************************************
+		Original Version (1.0):
+		Glenn G. Vergara
+		http://www21.brinkster.com/gver/
+		glenngv AT yahoo DOT com
+		Makati City, Philippines
+		
+		Object-Based Version:
+		Eric C. Davis
+		http://www.10mar2001.com/
+		eric AT 10mar2001 DOT com
+		Atlanta, GA, US
+		
+		(Keep the above intact if you want to use it! Thanks.)
+		
+		Current Version: 2.5b
+		Last Update: 1 December 2003
+		
+		********
+		Change Log:
+		New in version 2.5b:
+			- Reversed selectItem() loop to prevent default IE6/Win rapid-change behaviour (skipped to second on match of first)
+			- Outfitted for DOM2-style event handling; uses detection and falls back to DOM0 events
+			- Resets immediately on ALT+TAB to prevent IE6/Win's loss of the reset timer.
+		
+		New in version 2.4:
+			- Added accepting of non-existent option
+			- Added punctuation as acceptable input
+			- Added setValueByValue() convenience method
+		
+		New in version 2.2:
+			- Many properties made private
+			- Getters and setters for nearly all properties
+		
+		New in version 2.0:
+			- Object-oriented properties and methods using prototype
+			- Constructor can accept a select element object or a select element object's ID string
+			- Invocation reduced to single line of script: varName = new TypeAheadCombo('selectElementID');
+		
+		New in version 1.4:
+			- Allowable character set ranges use dynamic evaluation
+			- Display of typed characters in status bar can be disabled
+		
+		New in version 1.2:
+			- Replaced major if/elseif/.../else statement with switch/case
+			- Correction of characters typed on the numpad, reassigning to actual character values
+		********
+		
+		********
+		API:
+		Constructor:
+			new TypeAheadCombo(someSelectElement) // as an object or object reference
+			new TypeAheadCombo('someSelectElementID') // as a string
+			new TypeAheadCombobox('someSelectElementID', true) // to allow an undefined value
+		
+		Privileged Methods: (these interact with private properties and act as helper functions)
+			getTyped()
+				- returns the string typed by the user since the last timeout
+			setTyped(str)
+				- argument "str" - string which will replace the value in the type buffer
+			type(str)
+				- argument "str" - string which will be appended to the type buffer
+			resetTyped()
+				- clears what has been typed from the buffer
+			getIndex()
+				- returns the location of the option currently selected
+			setIndex(val)
+				- stores the location of the option being selected
+			getPrev()
+				- returns the location of the option previously selected
+			setPrev(val)
+				- stores the location of the option previously selected
+			setResetTime(val)
+				- sets the timeout interval for the reset timers
+			getResetTime()
+				- returns the timeout interval for the reset timers
+			setResetTimer()
+				- sets the timeout for the reset of the typed buffer
+			clearResetTimer()
+				- clears the timeout of the reset of the typed buffer
+			validChar(charCode)
+				- validates that the charCode passed is acceptable to the typed buffer
+			setDisplayStatus(bool)
+				- set whether to display the typed buffer in the status bar
+			getDisplayStatus()
+				- returns the current setting for status bar display of the typed buffer
+		
+		Public Methods:
+			detectKey()
+				- detects the keyCode, parses whether it is acceptable, and adds it to the typed buffer if so
+			selectItem()
+				- finds the first option that matches the typed buffer and selects it
+			reset()
+				- clears the typed buffer and the status display
+			updateIndex()
+				- handles the onclick and onblur events
+			elementFocus()
+				- handles the onfocus event
+			elementKeydown()
+				- handles the onkeydown event
+		********
+		
+		***************************************************/
+		function TypeAheadCombo (anElement,acceptNewValue) {
+			// DEGRADE UNSUPPORTED
+			if (document.layers) {
+				return;
+			}
+			// VALIDATION
+			if (!anElement) {
+				return false;
+			}
+			if (typeof anElement == "string") { // try for the ID
+				anElement = document.getElementById ? document.getElementById(anElement) : document.all ? document.all[anElement] : anElement;
+			}
+			if (typeof anElement == "string") { // the grab failed: typeof null yields "object"
+				return false;
+			}
+			// ASSOCIATION
+			this.element = anElement;
+			this.id = this.element.id + 'Combo';
+			this.element.combo = this;
+			// ELEMENT EVENT HANDLERS
+			if (this.element.addEventListener) {
+				// first try DOM2 methods
+				this.element.addEventListener("keydown", this.elementKeydown, false);
+				this.element.addEventListener("focus", this.elementFocus, false);
+				this.element.addEventListener("click", this.updateIndex, false);
+				this.element.addEventListener("blur", this.updateIndex, false);
+			} else {
+				// now try DOM0 methods
+				this.element.onkeydown = this.elementKeydown;
+				this.element.onfocus = this.elementFocus;
+				this.element.onclick = this.updateIndex;
+				this.element.onblur = this.updateIndex;
+			}
+			this.element.reset = this.reset;
+			// PRIVATE PROPERTIES
+			var self = this,	// corrects privatization bug
+				typed = "",
+				index = prev = 0,
+				displayStatus = true,
+				selector, resetter, nullStarter, acceptNew,
+				resetTime = 1600,
+				numberRangeStart = 48,
+				numberRangeEnd = 57,
+				charRangeStart = 65,
+				charRangeEnd = 90,
+				punctRangeStart = 146,
+				punctRangeEnd = 223;
+			if (this.element.options[0].text.length == 0 && (this.element.options[0].value.length == 0 || this.element.options[0].value == 0)) {
+				nullStarter = true;
+			} else {
+				nullStarter = false;
+			}
+			if (typeof acceptNewValue != 'undefined' && acceptNewValue) {
+				acceptNew = true;
+				resetTime = 2400;
+			} else {
+				acceptNew = false;
+			}
+			// PRIVATE METHODS
+			var getResetTime = function () {
+				return resetTime;
+			}
+			var charInRanges = function (charCode) {
+				if ((charCode >= numberRangeStart && charCode <= numberRangeEnd) || (charCode >= charRangeStart && charCode <= charRangeEnd) || (charCode >= punctRangeStart && charCode <= punctRangeEnd)) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+			// PRIVILEDGED METHODS
+			this.hasNullStarter = function () {
+				return nullStarter;
+			}
+			this.getAcceptsNew = function () {
+				return acceptNew;
+			}
+			this.getTyped = function () {
+				return typed;
+			}
+			this.setTyped = function (str) {
+				typed = str;
+				return true;
+			}
+			this.resetTyped = function () {
+				typed = "";
+				return true;
+			}
+			this.type = function (str) {
+				typed += str;
+				return true;
+			}
+			this.getIndex = function () {
+				return index;
+			}
+			this.setIndex = function (val) {
+				if (!isNaN(val)) {
+					index = val;
+				}
+			}
+			this.getPrev = function () {
+				return (prev ? prev : 0);
+			}
+			this.setPrev = function (val) {
+				if (!isNaN(val)) {
+					prev = val;
+				}
+			}
+			this.setResetTime = function (val) {
+				if (!isNaN(val)) {
+					resetTime = val;
+				}
+			}
+			this.setResetTimer = function () {
+				resetter = setTimeout("document.forms['"+this.element.form.name+"'].elements['"+this.element.name+"'].reset();", getResetTime());
+			}
+			this.clearResetTimer = function () {
+				clearTimeout(resetter);
+			}
+			this.delayedSelect = function () {
+				selector = setTimeout("document.forms['"+this.element.form.name+"'].elements['"+this.element.name+"'].combo.selectItem();", 10);
+			}
+			this.cancelDelay = function () {
+				clearTimeout(selector);
+			}
+			this.validChar = function (evt, charCode) {
+				if ((evt.ctrlKey) || (evt.altKey)) {
+					return false;
+				} else if ((evt.shiftKey) && charInRanges(charCode)) {
+					return true;
+				} else if (evt.shiftKey) {
+					return false;
+				} else {
+					return charInRanges(charCode);
+				}
+			}
+			this.setDisplayStatus = function (bool) {
+				if (bool == true || bool == false) {
+					displayStatus = bool;
+				}
+			}
+			this.getDisplayStatus = function () {
+				return displayStatus;
+			}
+			this.cancel = function (evt) {
+				if (evt) {
+					evt.preventDefault();
+				} else {
+					window.event.returnValue = false;
+				}
+				return false;
+			}
+		}
+		
+		/*
+		PUBLIC METHODS
+		*/
+		
+		TypeAheadCombo.prototype.detectKey = function (evt){
+			this.clearResetTimer();
+			this.cancelDelay();
+			var combo_letter = "";
+			var combo_code = (evt) ? evt.keyCode : window.event ? window.event.keyCode : evt.which;
+			var event = (evt) ? evt : window.event;
+			if (combo_code <= 105 && combo_code >= 96) { // make up for numPad typing
+				combo_code = combo_code - 48;
+			}
+			switch (combo_code) {
+				case 27:	//ESC key
+					this.reset();
+					this.setIndex(this.getPrev());
+					// Put a little delay to override NS6/Mozilla's built-in behavior of ESC inside select element
+					setTimeout("document.forms['"+this.element.form.name+"'].elements['"+this.element.name+"'].selectedIndex = document.forms['"+this.element.form.name+"'].elements['"+this.element.name+"'].index",0);
+					return false;
+					break;
+				case 13:	//ENTER key
+				case 9:		//TAB key
+					this.reset();
+					if (this.element.onchange) {
+						// set timer to prevent stack overflow in IE.
+						setTimeout("document.forms['" + this.element.form.name + "'].elements['" + this.element.name + "'].onchange()", 1);
+					}
+					return true;
+					break;
+				case 8:		//BACKSPACE key
+					this.setTyped(this.getTyped().substring(0,this.getTyped().length-1));
+					if (this.getAcceptsNew() && this.getIndex() == 0) {
+						this.makeNewValue();
+					}
+					if (this.getTyped() == "") {
+						this.reset();
+						this.setIndex(this.getPrev());
+						this.element.selectedIndex = this.getIndex();
+						if (evt) {
+							evt.preventDefault();
+						} else {
+							window.event.returnValue = false;
+						}
+						return false;
+					} else {
+						this.setResetTimer();
+					}
+					break;
+				case 33:	//PAGEUP key
+				case 34:	//PAGEDOWN key
+				case 35:	//END key
+				case 36:	//HOME key
+				case 38:	//UP arrow
+				case 40:	//DOWN arrow
+					this.reset();
+					return true;
+					break;
+				case 37:	//LEFT arrow	(translates to %)
+				case 39:	//RIGHT arrow	(translates to ')
+					this.reset();
+					return false;
+					break;
+				case 32:	//SPACE key	(not in accepted ranges)
+					combo_letter = " ";
+					this.setResetTimer();
+					break;
+				default:
+					if (this.validChar(event, combo_code)) {
+						combo_letter = String.fromKeyCode(combo_code);
+						if (combo_letter.length > 1) {
+							if (event.shiftKey) {
+								combo_letter = combo_letter[1];
+							} else {
+								combo_letter = combo_letter[0];
+							}
+						}
+						this.setResetTimer();
+					} else {
+						return true;
+					}
+					break;
+			}
+			this.type(combo_letter);
+			if (this.getDisplayStatus()) {
+				window.status = this.getTyped();
+			}
+			if (document.all) {
+				return this.selectItem();
+			} else {
+				return this.delayedSelect();
+			}
+		}
+		
+		TypeAheadCombo.prototype.selectItem = function (){
+			var i = this.element.options.length,
+				match = false;
+			do {
+				if (this.element.options[--i].text.toUpperCase().indexOf(this.getTyped().toUpperCase()) == 0){
+					this.element.selectedIndex = i;
+					this.setIndex(i);	//remember selected index
+					match = true;
+				}
+			} while (i > 0);
+			if (match) {
+				return false; // always return false;
+			}
+			if (this.getAcceptsNew()) {
+				this.makeNewValue();
+			} else {
+				this.element.selectedIndex = this.getIndex();	//re-select previously selected option even if there's no match
+			}
+			return false;  //always return false
+		}
+		
+		TypeAheadCombo.prototype.makeNewValue = function () {
+			this.removeNewValue();
+			var tmpText = this.getTyped(),tmpStart = tmpEnd = "",tmpArr,i;
+			if (this.hasNullStarter()) {
+				newOption = this.element.options[0];
+			} else if (tmpText.length > 0) {
+				newOption = document.createElement("option");
+				this.element.insertBefore(newOption, this.element.firstChild);
+				this.newOption = newOption;
+			} else {
+				this.newOption = null;
+				return;
+			}
+			tmpArr = tmpText.split(" ");
+			i = tmpArr.length;
+			if (tmpText.indexOf(" ") >= 0) {
+				do {
+					tmpStart = tmpArr[--i].substring(0,1);
+					tmpEnd = tmpArr[i].substring(1,tmpArr[i].length);
+					tmpArr[i] = tmpStart.toUpperCase() + tmpEnd.toLowerCase();
+				} while (i);
+				tmpText = tmpArr.join(" ");
+			} else {
+				tmpStart = tmpText.substring(0,1);
+				tmpEnd = tmpText.substring(1,tmpText.length);
+				tmpText = tmpStart.toUpperCase() + tmpEnd.toLowerCase();
+			}
+			newOption.value = tmpText;
+			newOption.text = tmpText;
+			this.element.selectedIndex = 0;
+			this.setIndex(0);
+		}
+		
+		TypeAheadCombo.prototype.removeNewValue = function () {
+			if (this.hasNullStarter()) {
+				this.element.options[0].text = '';
+				this.element.options[0].value = '';
+			} else if (this.newOption) {
+				this.element.remove(this.newOption);
+			}
+		}
+		
+		TypeAheadCombo.prototype.setValueByValue = function (aValue) {
+			var i = this.element.options.length;
+			do {
+				if (this.element.options[--i].value == aValue) {
+					this.element.selectedIndex = i;
+					break;
+				}
+			} while (i);
+		}
+		
+		TypeAheadCombo.prototype.reset = function () {
+			theCombo = this;
+			if (this.combo) {
+				theCombo = this.combo;
+			}
+			theCombo.element.selectedIndex = theCombo.getIndex();
+			theCombo.resetTyped();
+			if (theCombo.getDisplayStatus()) {
+				window.status = window.defaultStatus ? window.defaultStatus : '';
+			}
+		}
+		
+		TypeAheadCombo.prototype.updateIndex = function (evt){
+			var theCombo, theEl;
+			if (evt && window.addEventListener) {
+				// ready for handler with DOM2 event properties
+				var e = new DOM2Event(evt, window.event, this);
+				theEl = e.target;
+			} else {
+				theEl = this;
+			}
+			theCombo = theEl.combo;
+			theCombo.setIndex(theEl.selectedIndex);
+			theCombo.setPrev(theCombo.getIndex());
+		}
+		
+		TypeAheadCombo.prototype.elementFocus = function (evt) {
+			var theCombo;
+			if (evt && window.addEventListener) {
+				// ready for handler with DOM2 event properties
+				var e = new DOM2Event(evt, window.event, this);
+				theCombo = e.target.combo;
+			} else {
+				theCombo = this.combo;
+			}
+			theCombo.setIndex(theCombo.element.selectedIndex);
+		}
+		
+		TypeAheadCombo.prototype.elementKeydown = function (evt) {
+			var theCombo;
+			if (evt && window.addEventListener) {
+				// ready for handler with DOM2 event properties
+				if (DOM2Event) {
+					var e = new DOM2Event(evt, window.event, this);
+				}
+				theCombo = e.target.combo;
+			} else {
+				theCombo = this.combo;
+			}
+			if (!theCombo.detectKey(e)) {
+				return theCombo.cancel(e);
+			}
+		}
+		/* **** PAGE-SPECIFIC LOADER **** */
+		function pageInit() {
+			supercombo_1 = new TypeAheadCombo("combobox1");
+			supercombo_2 = new TypeAheadCombo("combobox2",true);
+			supercombo_3 = new TypeAheadCombo("combobox3",true);
+		}
+		window.onload = pageInit;
+	</script>
+	<style type="text/css">
+		body {
+			font-size: 70%;
+			font-family: 'Lucida Grande', Verdana, sans-serif;
+		}
+		select, option {
+			font-family: 'Lucida Grande', Verdana, sans-serif;
+		}
+		p.authors {
+			margin-left: 1em;
+			font-family: 'Andale Mono', 'Lucida Console', monospace;
+			color: #999;
+			background-color: #fff;
+			white-space: pre;
+		}
+		p.authors em {
+			font-weight: normal;
+			font-style: normal;
+			text-decoration: overline;
+		}
+	</style>
+</head>
+<body>
+
+<form action="index.html" method="get" name="comboForm">
+	<h3>Multi-stroke Auto-select Combo</h3>
+	<p>Combo box or dropdown list behaves in such a way that it will select the item that matches its first letter as you type inside it.
+		In a very long list, it is more convenient to type continuously to select the item that matches the word or phrase you typed (just like in Index in Help files but without that extra field!).
+		I've whipped up this code to do just that. Try the demo below:</p>
+
+	<h4>With no code</h4>
+	<p>Set focus on each listbox below then type <strong>A-U-S-T-R-I</strong> or your desired letters:<br>
+	<select>
+		<option value=""></option>
+		<option value="Afghanistan">Afghanistan</option>
+		<option value="Albania">Albania</option>
+		<option value="Algeria">Algeria</option>
+		<option value="American Samoa">American Samoa</option>
+		<option value="Andorra">Andorra</option>
+		<option value="Angola">Angola</option>
+		<option value="Anguilla">Anguilla</option>
+		<option value="Antarctica">Antarctica</option>
+		<option value="Antigua and Barbuda">Antigua and Barbuda</option>
+		<option value="Argentina">Argentina</option>
+		<option value="Armenia">Armenia</option>
+		<option value="Aruba">Aruba</option>
+		<option value="Australia">Australia</option>
+		<option value="Austria">Austria</option>
+		<option value="Azerbaijan">Azerbaijan</option>
+		<option value="Bahamas">Bahamas</option>
+		<option value="Bahrain">Bahrain</option>
+		<option value="Bangladesh">Bangladesh</option>
+		<option value="Barbados">Barbados</option>
+		<option value="Belarus">Belarus</option>
+		<option value="Belgium">Belgium</option>
+		<option value="Belize">Belize</option>
+		<option value="Benin">Benin</option>
+		<option value="Bermuda">Bermuda</option>
+		<option value="Bhutan">Bhutan</option>
+		<option value="Bolivia">Bolivia</option>
+		<option value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+		<option value="Botswana">Botswana</option>
+		<option value="Bouvet Island">Bouvet Island</option>
+		<option value="Brazil">Brazil</option>
+		<option value="British Indian Ocean Territory">British Indian Ocean Territory</option>
+		<option value="Brunei">Brunei</option>
+		<option value="Bulgaria">Bulgaria</option>
+		<option value="Burkina Faso">Burkina Faso</option>
+		<option value="Burundi">Burundi</option>
+		<option value="Cambodia">Cambodia</option>
+		<option value="Cameroon">Cameroon</option>
+		<option value="Canada">Canada</option>
+		<option value="Cape Verde">Cape Verde</option>
+		<option value="Cayman Islands">Cayman Islands</option>
+		<option value="Central African Republic">Central African Republic</option>
+		<option value="Chad">Chad</option>
+		<option value="Chile">Chile</option>
+		<option value="China">China</option>
+		<option value="Christmas Island">Christmas Island</option>
+		<option value="Cocos Keeling Islands">Cocos &#40;Keeling&#41; Islands</option>
+		<option value="Colombia">Colombia</option>
+		<option value="Comoros">Comoros</option>
+		<option value="Congo">Congo</option>
+		<option value="Cook Islands">Cook Islands</option>
+		<option value="Costa Rica">Costa Rica</option>
+		<option value="Côte d Ivoire">Côte d&#39;Ivoire</option>
+		<option value="Croatia Hrvatska">Croatia &#40;Hrvatska&#41;</option>
+		<option value="Cuba">Cuba</option>
+		<option value="Cyprus">Cyprus</option>
+		<option value="Czech Republic">Czech Republic</option>
+		<option value="Congo DRC">Congo &#40;DRC&#41;</option>
+		<option value="Denmark">Denmark</option>
+		<option value="Djibouti">Djibouti</option>
+		<option value="Dominica">Dominica</option>
+		<option value="Dominican Republic">Dominican Republic</option>
+		<option value="East Timor">East Timor</option>
+		<option value="Ecuador">Ecuador</option>
+		<option value="Egypt">Egypt</option>
+		<option value="El Salvador">El Salvador</option>
+		<option value="Equatorial Guinea">Equatorial Guinea</option>
+		<option value="Eritrea">Eritrea</option>
+		<option value="Estonia">Estonia</option>
+		<option value="Ethiopia">Ethiopia</option>
+		<option value="Falkland Islands Islas Malvinas">Falkland Islands &#40;Islas Malvinas&#41;</option>
+		<option value="Faroe Islands">Faroe Islands</option>
+		<option value="Fiji Islands">Fiji Islands</option>
+		<option value="Finland">Finland</option>
+		<option value="France">France</option>
+		<option value="French Guiana">French Guiana</option>
+		<option value="French Polynesia">French Polynesia</option>
+		<option value="French Southern and Antarctic Lands">French Southern and Antarctic Lands</option>
+		<option value="Gabon">Gabon</option>
+		<option value="Gambia">Gambia</option>
+		<option value="Georgia">Georgia</option>
+		<option value="Germany">Germany</option>
+		<option value="Ghana">Ghana</option>
+		<option value="Gibraltar">Gibraltar</option>
+		<option value="Greece">Greece</option>
+		<option value="Greenland">Greenland</option>
+		<option value="Grenada">Grenada</option>
+		<option value="Guadeloupe">Guadeloupe</option>
+		<option value="Guam">Guam</option>
+		<option value="Guatemala">Guatemala</option>
+		<option value="Guinea">Guinea</option>
+		<option value="Guinea-Bissau">Guinea-Bissau</option>
+		<option value="Guyana">Guyana</option>
+		<option value="Haiti">Haiti</option>
+		<option value="Heard Island and McDonald Islands">Heard Island and McDonald Islands</option>
+		<option value="Honduras">Honduras</option>
+		<option value="Hong Kong SAR">Hong Kong SAR</option>
+		<option value="Hungary">Hungary</option>
+		<option value="Iceland">Iceland</option>
+		<option value="India">India</option>
+		<option value="Indonesia">Indonesia</option>
+		<option value="Iran">Iran</option>
+		<option value="Iraq">Iraq</option>
+		<option value="Ireland">Ireland</option>
+		<option value="Israel">Israel</option>
+		<option value="Italy">Italy</option>
+		<option value="Jamaica">Jamaica</option>
+		<option value="Japan">Japan</option>
+		<option value="Jordan">Jordan</option>
+		<option value="Kazakhstan">Kazakhstan</option>
+		<option value="Kenya">Kenya</option>
+		<option value="Kiribati">Kiribati</option>
+		<option value="Korea">Korea</option>
+		<option value="Kuwait">Kuwait</option>
+		<option value="Kyrgyzstan">Kyrgyzstan</option>
+		<option value="Laos">Laos</option>
+		<option value="Latvia">Latvia</option>
+		<option value="Lebanon">Lebanon</option>
+		<option value="Lesotho">Lesotho</option>
+		<option value="Liberia">Liberia</option>
+		<option value="Libya">Libya</option>
+		<option value="Liechtenstein">Liechtenstein</option>
+		<option value="Lithuania">Lithuania</option>
+		<option value="Luxembourg">Luxembourg</option>
+		<option value="Macao SAR">Macao SAR</option>
+		<option value="Macedonia, Former Yugoslav Republic of">Macedonia, Former Yugoslav Republic of</option>
+		<option value="Madagascar">Madagascar</option>
+		<option value="Malawi">Malawi</option>
+		<option value="Malaysia">Malaysia</option>
+		<option value="Maldives">Maldives</option>
+		<option value="Mali">Mali</option>
+		<option value="Malta">Malta</option>
+		<option value="Marshall Islands">Marshall Islands</option>
+		<option value="Martinique">Martinique</option>
+		<option value="Mauritania">Mauritania</option>
+		<option value="Mauritius">Mauritius</option>
+		<option value="Mayotte">Mayotte</option>
+		<option value="Mexico">Mexico</option>
+		<option value="Micronesia">Micronesia</option>
+		<option value="Moldova">Moldova</option>
+		<option value="Monaco">Monaco</option>
+		<option value="Mongolia">Mongolia</option>
+		<option value="Montserrat">Montserrat</option>
+		<option value="Morocco">Morocco</option>
+		<option value="Mozambique">Mozambique</option>
+		<option value="Myanmar">Myanmar</option>
+		<option value="Namibia">Namibia</option>
+		<option value="Nauru">Nauru</option>
+		<option value="Nepal">Nepal</option>
+		<option value="Netherlands">Netherlands</option>
+		<option value="Netherlands Antilles">Netherlands Antilles</option>
+		<option value="New Caledonia">New Caledonia</option>
+		<option value="New Zealand">New Zealand</option>
+		<option value="Nicaragua">Nicaragua</option>
+		<option value="Niger">Niger</option>
+		<option value="Nigeria">Nigeria</option>
+		<option value="Niue">Niue</option>
+		<option value="Norfolk Island">Norfolk Island</option>
+		<option value="North Korea">North Korea</option>
+		<option value="Northern Mariana Islands">Northern Mariana Islands</option>
+		<option value="Norway">Norway</option>
+		<option value="Oman">Oman</option>
+		<option value="Pakistan">Pakistan</option>
+		<option value="Palau">Palau</option>
+		<option value="Panama">Panama</option>
+		<option value="Papua New Guinea">Papua New Guinea</option>
+		<option value="Paraguay">Paraguay</option>
+		<option value="Peru">Peru</option>
+		<option value="Philippines">Philippines</option>
+		<option value="Pitcairn Islands">Pitcairn Islands</option>
+		<option value="Poland">Poland</option>
+		<option value="Portugal">Portugal</option>
+		<option value="Puerto Rico">Puerto Rico</option>
+		<option value="Qatar">Qatar</option>
+		<option value="Reunion">Reunion</option>
+		<option value="Romania">Romania</option>
+		<option value="Russia">Russia</option>
+		<option value="Rwanda">Rwanda</option>
+		<option value="Samoa">Samoa</option>
+		<option value="San Marino">San Marino</option>
+		<option value="São Tomé and Príncipe">São Tomé and Príncipe</option>
+		<option value="Saudi Arabia">Saudi Arabia</option>
+		<option value="Senegal">Senegal</option>
+		<option value="Serbia and Montenegro">Serbia and Montenegro</option>
+		<option value="Seychelles">Seychelles</option>
+		<option value="Sierra Leone">Sierra Leone</option>
+		<option value="Singapore">Singapore</option>
+		<option value="Slovakia">Slovakia</option>
+		<option value="Slovenia">Slovenia</option>
+		<option value="Solomon Islands">Solomon Islands</option>
+		<option value="Somalia">Somalia</option>
+		<option value="South Africa">South Africa</option>
+		<option value="South Georgia and the South Sandwich Islands">South Georgia and the South Sandwich Islands</option>
+		<option value="Spain">Spain</option>
+		<option value="Sri Lanka">Sri Lanka</option>
+		<option value="St. Helena">St. Helena</option>
+		<option value="St. Kitts and Nevis">St. Kitts and Nevis</option>
+		<option value="St. Lucia">St. Lucia</option>
+		<option value="St. Pierre and Miquelon">St. Pierre and Miquelon</option>
+		<option value="St. Vincent and the Grenadines">St. Vincent and the Grenadines</option>
+		<option value="Sudan">Sudan</option>
+		<option value="Suriname">Suriname</option>
+		<option value="Svalbard and Jan Mayen">Svalbard and Jan Mayen</option>
+		<option value="Swaziland">Swaziland</option>
+		<option value="Sweden">Sweden</option>
+		<option value="Switzerland">Switzerland</option>
+		<option value="Syria">Syria</option>
+		<option value="Taiwan">Taiwan</option>
+		<option value="Tajikistan">Tajikistan</option>
+		<option value="Tanzania">Tanzania</option>
+		<option value="Thailand">Thailand</option>
+		<option value="Togo">Togo</option>
+		<option value="Tokelau">Tokelau</option>
+		<option value="Tonga">Tonga</option>
+		<option value="Trinidad and Tobago">Trinidad and Tobago</option>
+		<option value="Tunisia">Tunisia</option>
+		<option value="Turkey">Turkey</option>
+		<option value="Turkmenistan">Turkmenistan</option>
+		<option value="Turks and Caicos Islands">Turks and Caicos Islands</option>
+		<option value="Tuvalu">Tuvalu</option>
+		<option value="Uganda">Uganda</option>
+		<option value="Ukraine">Ukraine</option>
+		<option value="United Arab Emirates">United Arab Emirates</option>
+		<option value="United Kingdom">United Kingdom</option>
+		<option value="United States Minor Outlying Islands">United States Minor Outlying Islands</option>
+		<option value="Uruguay">Uruguay</option>
+		<option value="Uzbekistan">Uzbekistan</option>
+		<option value="Vanuatu">Vanuatu</option>
+		<option value="Vatican City">Vatican City</option>
+		<option value="Venezuela">Venezuela</option>
+		<option value="Viet Nam">Viet Nam</option>
+		<option value="Virgin Islands">Virgin Islands</option>
+		<option value="Virgin Islands British">Virgin Islands &#40;British&#41;</option>
+		<option value="Wallis and Futuna">Wallis and Futuna</option>
+		<option value="Yemen">Yemen</option>
+		<option value="Zambia">Zambia</option>
+		<option value="Zimbabwe">Zimbabwe</option>
+	</select>
+	</p>
+	
+	<h4>With code</h4>
+	<p>Set focus on each listbox below then type <strong>A-U-S-T-R-I</strong> or your desired letters:<br>
+	<select name="combobox1" id="combobox1">
+		<option value=""></option>
+		<option value="Afghanistan">Afghanistan</option>
+		<option value="Albania">Albania</option>
+		<option value="Algeria">Algeria</option>
+		<option value="American Samoa">American Samoa</option>
+		<option value="Andorra">Andorra</option>
+		<option value="Angola">Angola</option>
+		<option value="Anguilla">Anguilla</option>
+		<option value="Antarctica">Antarctica</option>
+		<option value="Antigua and Barbuda">Antigua and Barbuda</option>
+		<option value="Argentina">Argentina</option>
+		<option value="Armenia">Armenia</option>
+		<option value="Aruba">Aruba</option>
+		<option value="Australia">Australia</option>
+		<option value="Austria">Austria</option>
+		<option value="Azerbaijan">Azerbaijan</option>
+		<option value="Bahamas">Bahamas</option>
+		<option value="Bahrain">Bahrain</option>
+		<option value="Bangladesh">Bangladesh</option>
+		<option value="Barbados">Barbados</option>
+		<option value="Belarus">Belarus</option>
+		<option value="Belgium">Belgium</option>
+		<option value="Belize">Belize</option>
+		<option value="Benin">Benin</option>
+		<option value="Bermuda">Bermuda</option>
+		<option value="Bhutan">Bhutan</option>
+		<option value="Bolivia">Bolivia</option>
+		<option value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+		<option value="Botswana">Botswana</option>
+		<option value="Bouvet Island">Bouvet Island</option>
+		<option value="Brazil">Brazil</option>
+		<option value="British Indian Ocean Territory">British Indian Ocean Territory</option>
+		<option value="Brunei">Brunei</option>
+		<option value="Bulgaria">Bulgaria</option>
+		<option value="Burkina Faso">Burkina Faso</option>
+		<option value="Burundi">Burundi</option>
+		<option value="Cambodia">Cambodia</option>
+		<option value="Cameroon">Cameroon</option>
+		<option value="Canada">Canada</option>
+		<option value="Cape Verde">Cape Verde</option>
+		<option value="Cayman Islands">Cayman Islands</option>
+		<option value="Central African Republic">Central African Republic</option>
+		<option value="Chad">Chad</option>
+		<option value="Chile">Chile</option>
+		<option value="China">China</option>
+		<option value="Christmas Island">Christmas Island</option>
+		<option value="Cocos Keeling Islands">Cocos &#40;Keeling&#41; Islands</option>
+		<option value="Colombia">Colombia</option>
+		<option value="Comoros">Comoros</option>
+		<option value="Congo">Congo</option>
+		<option value="Cook Islands">Cook Islands</option>
+		<option value="Costa Rica">Costa Rica</option>
+		<option value="Côte d Ivoire">Côte d&#39;Ivoire</option>
+		<option value="Croatia Hrvatska">Croatia &#40;Hrvatska&#41;</option>
+		<option value="Cuba">Cuba</option>
+		<option value="Cyprus">Cyprus</option>
+		<option value="Czech Republic">Czech Republic</option>
+		<option value="Congo DRC">Congo &#40;DRC&#41;</option>
+		<option value="Denmark">Denmark</option>
+		<option value="Djibouti">Djibouti</option>
+		<option value="Dominica">Dominica</option>
+		<option value="Dominican Republic">Dominican Republic</option>
+		<option value="East Timor">East Timor</option>
+		<option value="Ecuador">Ecuador</option>
+		<option value="Egypt">Egypt</option>
+		<option value="El Salvador">El Salvador</option>
+		<option value="Equatorial Guinea">Equatorial Guinea</option>
+		<option value="Eritrea">Eritrea</option>
+		<option value="Estonia">Estonia</option>
+		<option value="Ethiopia">Ethiopia</option>
+		<option value="Falkland Islands Islas Malvinas">Falkland Islands &#40;Islas Malvinas&#41;</option>
+		<option value="Faroe Islands">Faroe Islands</option>
+		<option value="Fiji Islands">Fiji Islands</option>
+		<option value="Finland">Finland</option>
+		<option value="France">France</option>
+		<option value="French Guiana">French Guiana</option>
+		<option value="French Polynesia">French Polynesia</option>
+		<option value="French Southern and Antarctic Lands">French Southern and Antarctic Lands</option>
+		<option value="Gabon">Gabon</option>
+		<option value="Gambia">Gambia</option>
+		<option value="Georgia">Georgia</option>
+		<option value="Germany">Germany</option>
+		<option value="Ghana">Ghana</option>
+		<option value="Gibraltar">Gibraltar</option>
+		<option value="Greece">Greece</option>
+		<option value="Greenland">Greenland</option>
+		<option value="Grenada">Grenada</option>
+		<option value="Guadeloupe">Guadeloupe</option>
+		<option value="Guam">Guam</option>
+		<option value="Guatemala">Guatemala</option>
+		<option value="Guinea">Guinea</option>
+		<option value="Guinea-Bissau">Guinea-Bissau</option>
+		<option value="Guyana">Guyana</option>
+		<option value="Haiti">Haiti</option>
+		<option value="Heard Island and McDonald Islands">Heard Island and McDonald Islands</option>
+		<option value="Honduras">Honduras</option>
+		<option value="Hong Kong SAR">Hong Kong SAR</option>
+		<option value="Hungary">Hungary</option>
+		<option value="Iceland">Iceland</option>
+		<option value="India">India</option>
+		<option value="Indonesia">Indonesia</option>
+		<option value="Iran">Iran</option>
+		<option value="Iraq">Iraq</option>
+		<option value="Ireland">Ireland</option>
+		<option value="Israel">Israel</option>
+		<option value="Italy">Italy</option>
+		<option value="Jamaica">Jamaica</option>
+		<option value="Japan">Japan</option>
+		<option value="Jordan">Jordan</option>
+		<option value="Kazakhstan">Kazakhstan</option>
+		<option value="Kenya">Kenya</option>
+		<option value="Kiribati">Kiribati</option>
+		<option value="Korea">Korea</option>
+		<option value="Kuwait">Kuwait</option>
+		<option value="Kyrgyzstan">Kyrgyzstan</option>
+		<option value="Laos">Laos</option>
+		<option value="Latvia">Latvia</option>
+		<option value="Lebanon">Lebanon</option>
+		<option value="Lesotho">Lesotho</option>
+		<option value="Liberia">Liberia</option>
+		<option value="Libya">Libya</option>
+		<option value="Liechtenstein">Liechtenstein</option>
+		<option value="Lithuania">Lithuania</option>
+		<option value="Luxembourg">Luxembourg</option>
+		<option value="Macao SAR">Macao SAR</option>
+		<option value="Macedonia, Former Yugoslav Republic of">Macedonia, Former Yugoslav Republic of</option>
+		<option value="Madagascar">Madagascar</option>
+		<option value="Malawi">Malawi</option>
+		<option value="Malaysia">Malaysia</option>
+		<option value="Maldives">Maldives</option>
+		<option value="Mali">Mali</option>
+		<option value="Malta">Malta</option>
+		<option value="Marshall Islands">Marshall Islands</option>
+		<option value="Martinique">Martinique</option>
+		<option value="Mauritania">Mauritania</option>
+		<option value="Mauritius">Mauritius</option>
+		<option value="Mayotte">Mayotte</option>
+		<option value="Mexico">Mexico</option>
+		<option value="Micronesia">Micronesia</option>
+		<option value="Moldova">Moldova</option>
+		<option value="Monaco">Monaco</option>
+		<option value="Mongolia">Mongolia</option>
+		<option value="Montserrat">Montserrat</option>
+		<option value="Morocco">Morocco</option>
+		<option value="Mozambique">Mozambique</option>
+		<option value="Myanmar">Myanmar</option>
+		<option value="Namibia">Namibia</option>
+		<option value="Nauru">Nauru</option>
+		<option value="Nepal">Nepal</option>
+		<option value="Netherlands">Netherlands</option>
+		<option value="Netherlands Antilles">Netherlands Antilles</option>
+		<option value="New Caledonia">New Caledonia</option>
+		<option value="New Zealand">New Zealand</option>
+		<option value="Nicaragua">Nicaragua</option>
+		<option value="Niger">Niger</option>
+		<option value="Nigeria">Nigeria</option>
+		<option value="Niue">Niue</option>
+		<option value="Norfolk Island">Norfolk Island</option>
+		<option value="North Korea">North Korea</option>
+		<option value="Northern Mariana Islands">Northern Mariana Islands</option>
+		<option value="Norway">Norway</option>
+		<option value="Oman">Oman</option>
+		<option value="Pakistan">Pakistan</option>
+		<option value="Palau">Palau</option>
+		<option value="Panama">Panama</option>
+		<option value="Papua New Guinea">Papua New Guinea</option>
+		<option value="Paraguay">Paraguay</option>
+		<option value="Peru">Peru</option>
+		<option value="Philippines">Philippines</option>
+		<option value="Pitcairn Islands">Pitcairn Islands</option>
+		<option value="Poland">Poland</option>
+		<option value="Portugal">Portugal</option>
+		<option value="Puerto Rico">Puerto Rico</option>
+		<option value="Qatar">Qatar</option>
+		<option value="Reunion">Reunion</option>
+		<option value="Romania">Romania</option>
+		<option value="Russia">Russia</option>
+		<option value="Rwanda">Rwanda</option>
+		<option value="Samoa">Samoa</option>
+		<option value="San Marino">San Marino</option>
+		<option value="São Tomé and Príncipe">São Tomé and Príncipe</option>
+		<option value="Saudi Arabia">Saudi Arabia</option>
+		<option value="Senegal">Senegal</option>
+		<option value="Serbia and Montenegro">Serbia and Montenegro</option>
+		<option value="Seychelles">Seychelles</option>
+		<option value="Sierra Leone">Sierra Leone</option>
+		<option value="Singapore">Singapore</option>
+		<option value="Slovakia">Slovakia</option>
+		<option value="Slovenia">Slovenia</option>
+		<option value="Solomon Islands">Solomon Islands</option>
+		<option value="Somalia">Somalia</option>
+		<option value="South Africa">South Africa</option>
+		<option value="South Georgia and the South Sandwich Islands">South Georgia and the South Sandwich Islands</option>
+		<option value="Spain">Spain</option>
+		<option value="Sri Lanka">Sri Lanka</option>
+		<option value="St. Helena">St. Helena</option>
+		<option value="St. Kitts and Nevis">St. Kitts and Nevis</option>
+		<option value="St. Lucia">St. Lucia</option>
+		<option value="St. Pierre and Miquelon">St. Pierre and Miquelon</option>
+		<option value="St. Vincent and the Grenadines">St. Vincent and the Grenadines</option>
+		<option value="Sudan">Sudan</option>
+		<option value="Suriname">Suriname</option>
+		<option value="Svalbard and Jan Mayen">Svalbard and Jan Mayen</option>
+		<option value="Swaziland">Swaziland</option>
+		<option value="Sweden">Sweden</option>
+		<option value="Switzerland">Switzerland</option>
+		<option value="Syria">Syria</option>
+		<option value="Taiwan">Taiwan</option>
+		<option value="Tajikistan">Tajikistan</option>
+		<option value="Tanzania">Tanzania</option>
+		<option value="Thailand">Thailand</option>
+		<option value="Togo">Togo</option>
+		<option value="Tokelau">Tokelau</option>
+		<option value="Tonga">Tonga</option>
+		<option value="Trinidad and Tobago">Trinidad and Tobago</option>
+		<option value="Tunisia">Tunisia</option>
+		<option value="Turkey">Turkey</option>
+		<option value="Turkmenistan">Turkmenistan</option>
+		<option value="Turks and Caicos Islands">Turks and Caicos Islands</option>
+		<option value="Tuvalu">Tuvalu</option>
+		<option value="Uganda">Uganda</option>
+		<option value="Ukraine">Ukraine</option>
+		<option value="United Arab Emirates">United Arab Emirates</option>
+		<option value="United Kingdom">United Kingdom</option>
+		<option value="United States">United States</option>
+		<option value="United States Minor Outlying Islands">United States Minor Outlying Islands</option>
+		<option value="Uruguay">Uruguay</option>
+		<option value="Uzbekistan">Uzbekistan</option>
+		<option value="Vanuatu">Vanuatu</option>
+		<option value="Vatican City">Vatican City</option>
+		<option value="Venezuela">Venezuela</option>
+		<option value="Viet Nam">Viet Nam</option>
+		<option value="Virgin Islands">Virgin Islands</option>
+		<option value="Virgin Islands British">Virgin Islands &#40;British&#41;</option>
+		<option value="Wallis and Futuna">Wallis and Futuna</option>
+		<option value="Yemen">Yemen</option>
+		<option value="Zambia">Zambia</option>
+		<option value="Zimbabwe">Zimbabwe</option>
+	</select>
+	</p>
+	
+	<p>This combo box allows for non-existent entries to be entered. Try <strong>P-I-N-O-T</strong>(space)<strong>G-R-I-S</strong> or <strong>S-Y-R-A-H</strong><br />
+	<select name="combobox2" id="combobox2">
+		<option>Chardonnay</option>
+		<option>Fume Blanc</option>
+		<option>Malbec</option>
+		<option>Merlot</option>
+		<option>Pinot Grigio</option>
+		<option>Pinot Noir</option>
+		<option>Riesling</option>
+		<option>Shiraz</option>
+	</select>
+	</p>
+
+	<p>This combo box allows for non-existent entries to be entered into the empty first option. Try <strong>P-I-N-O-T</strong>(space)<strong>G-R-I-S</strong> or <strong>S-Y-R-A-H</strong><br />
+	<select name="combobox3" id="combobox3">
+		<option></option>
+		<option>Chardonnay</option>
+		<option>Fume Blanc</option>
+		<option>Malbec</option>
+		<option>Merlot</option>
+		<option>Pinot Grigio</option>
+		<option>Pinot Noir</option>
+		<option>Riesling</option>
+		<option>Shiraz</option>
+	</select>
+	</p>
+	</p>
+</form>
+<p>
+<small>
+<b>Note:</b><br>
+- Press <b>ESC</b> key to reset keystrokes<br>
+- Press <b>BACKSPACE</b> key to delete last keystroke<br>
+- Press <b>TAB</b> or <b>ENTER</b> key to select item and set focus to next element<br>
+- Look at status bar to see what you are typing - can be disabled if you so wish.<br>
+- Works with IE/Netscape6/Mozilla<br>
+- Degrades well with browsers not supporting <i><b>onkeydown</b></i> (e.g. Netscape4) on select element
+</small>
+</p>
+<p class="authors">
+<em>Original Version:</em>
+Glenn G. Vergara 
+http://www21.brinkster.com/gver/
+glenngv <strong>AT</strong> yahoo <strong>DOT</strong> com
+Makati City, Philippines
+
+<em>Object-Based Version and Editable functionality:</em>
+Eric C. Davis
+http://www.10mar2001.com/
+eric <strong>AT</strong> 10mar2001 <strong>DOT</strong> com
+Atlanta, GA, US
+</p>
+
+</body>
+</html>
